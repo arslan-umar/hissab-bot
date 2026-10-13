@@ -1,5 +1,5 @@
 import { parseMessage } from '../lib/gemini.js';
-import { saveExpense, getExpenseSummary, getExpenseDetails } from '../lib/db.js';
+import { saveExpense, getExpenseSummary, getExpenseDetails, getExpenseStats, clearExpenses } from '../lib/db.js';
 import { sendMessage } from '../lib/whatsapp.js';
 
 export default async function handler(req, res) {
@@ -46,13 +46,41 @@ export default async function handler(req, res) {
             const details = await getExpenseDetails(phone, parsed.period, parsed.category || null);
             await sendMessage(phone, details);
 
+          } else if (parsed.action === 'clear_request') {
+            const period = parsed.period || 'this_month';
+            const { count, total, byCategory } = await getExpenseStats(phone, period);
+            if (count === 0) {
+              await sendMessage(phone, `No expenses found for ${periodLabel(period)} 📭`);
+            } else {
+              const phrase = confirmPhrase(period);
+              const catLines = Object.entries(byCategory)
+                .sort((a, b) => b[1] - a[1])
+                .map(([cat, amt]) => `  • ${cat}: ${amt.toLocaleString()} PKR`)
+                .join('\n');
+              await sendMessage(phone,
+                `⚠️ *Clear ${capitalize(periodLabel(period))} Expenses?*\n\n` +
+                `*${count} expense(s)* will be deleted:\n${catLines}\n\n` +
+                `💰 *Total: ${total.toLocaleString()} PKR*\n\n` +
+                `This cannot be undone. To confirm, reply:\n*${phrase}*\n\n` +
+                `Or ignore to cancel.`
+              );
+            }
+
+          } else if (parsed.action === 'clear_confirm') {
+            const period = parsed.period || 'this_month';
+            await clearExpenses(phone, period);
+            await sendMessage(phone,
+              `✅ *Done!* All ${capitalize(periodLabel(period))} expenses have been cleared.\n\n` +
+              `Start fresh by saying:\n*spent 500 on food*`
+            );
+
           } else {
             await sendMessage(phone,
               "I didn't understand that 🤔\n\nTry:\n" +
               "• *spent 500 on food*\n" +
-              "• *paid 1500 electricity bill*\n" +
               "• *total this month*\n" +
-              "• *is hafte kitna kharch hua?*"
+              "• *is hafte kitna kharch hua?*\n" +
+              "• *clear this month*"
             );
           }
         }
@@ -65,6 +93,32 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).end();
+}
+
+function periodLabel(period) {
+  const map = {
+    today: 'today', yesterday: 'yesterday',
+    this_week: 'this week', last_week: 'last week', last_7_days: 'last 7 days',
+    this_month: 'this month', last_month: 'last month',
+  };
+  return map[period] || period.replace(/_/g, ' ');
+}
+
+function capitalize(str) {
+  return str.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function confirmPhrase(period) {
+  const map = {
+    today: 'YES DELETE TODAY',
+    yesterday: 'YES DELETE YESTERDAY',
+    this_week: 'YES DELETE THIS WEEK',
+    last_week: 'YES DELETE LAST WEEK',
+    last_7_days: 'YES DELETE LAST 7 DAYS',
+    this_month: 'YES DELETE THIS MONTH',
+    last_month: 'YES DELETE LAST MONTH',
+  };
+  return map[period] || 'YES DELETE';
 }
 
 function formatAddReply({ amount, category, description, date }) {
