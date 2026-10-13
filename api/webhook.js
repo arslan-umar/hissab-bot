@@ -1,5 +1,5 @@
 import { parseMessage } from '../lib/gemini.js';
-import { saveExpense, getExpenseSummary, getExpenseDetails, generateReceipt, getExpenseStats, clearExpenses } from '../lib/db.js';
+import { saveExpense, saveIncome, getExpenseSummary, getExpenseDetails, generateReceipt, getExpenseStats, clearExpenses } from '../lib/db.js';
 import { sendMessage } from '../lib/whatsapp.js';
 
 export default async function handler(req, res) {
@@ -37,6 +37,15 @@ export default async function handler(req, res) {
           if (parsed.action === 'add') {
             await saveExpense(phone, parsed);
             await sendMessage(phone, formatAddReply(parsed));
+
+          } else if (parsed.action === 'receive') {
+            await saveIncome(phone, parsed);
+            await sendMessage(phone,
+              `💵 *Received!*\n\n` +
+              `Amount: *${Number(parsed.amount).toLocaleString()} PKR*\n` +
+              `Note:   ${parsed.description}\n` +
+              `Date:   ${parsed.date}`
+            );
 
           } else if (parsed.action === 'query') {
             const summary = await getExpenseSummary(phone, parsed.period, parsed.category || null);
