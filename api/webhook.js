@@ -1,5 +1,5 @@
 import { parseMessage } from '../lib/gemini.js';
-import { saveExpense, getExpenseSummary, getExpenseDetails, getExpenseStats, clearExpenses } from '../lib/db.js';
+import { saveExpense, getExpenseSummary, getExpenseDetails, generateReceipt, getExpenseStats, clearExpenses } from '../lib/db.js';
 import { sendMessage } from '../lib/whatsapp.js';
 
 export default async function handler(req, res) {
@@ -45,6 +45,10 @@ export default async function handler(req, res) {
           } else if (parsed.action === 'detail') {
             const details = await getExpenseDetails(phone, parsed.period, parsed.category || null);
             await sendMessage(phone, details);
+
+          } else if (parsed.action === 'receipt') {
+            const receipt = await generateReceipt(phone, parsed.period);
+            await sendMessage(phone, receipt);
 
           } else if (parsed.action === 'clear_request') {
             const period = parsed.period || 'this_month';
