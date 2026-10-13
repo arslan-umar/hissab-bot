@@ -39,7 +39,7 @@ export default async function handler(req, res) {
             await sendMessage(phone, formatAddReply(parsed));
 
           } else if (parsed.action === 'query') {
-            const summary = await getExpenseSummary(phone, parsed.period);
+            const summary = await getExpenseSummary(phone, parsed.period, parsed.category || null);
             await sendMessage(phone, summary);
 
           } else if (parsed.action === 'detail') {
