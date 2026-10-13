@@ -3,6 +3,13 @@ import { saveExpense, getExpenseSummary } from '../lib/db.js';
 import { sendMessage } from '../lib/whatsapp.js';
 
 export default async function handler(req, res) {
+  // ── Parse body if it came in as a raw string ──
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { body = {}; }
+  }
+  body = body || {};
+
   // ── Webhook verification (Meta sends a GET to confirm the URL) ──
   if (req.method === 'GET') {
     const mode      = req.query['hub.mode'];
@@ -17,8 +24,6 @@ export default async function handler(req, res) {
 
   // ── Incoming WhatsApp message ──
   if (req.method === 'POST') {
-    const body = req.body;
-
     if (body.object === 'whatsapp_business_account') {
       try {
         const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
