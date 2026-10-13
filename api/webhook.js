@@ -1,6 +1,7 @@
 import { parseMessage } from '../lib/gemini.js';
 import { saveExpense, saveIncome, getExpenseSummary, getExpenseDetails, generateReceipt, getExpenseStats, clearExpenses } from '../lib/db.js';
 import { sendMessage } from '../lib/whatsapp.js';
+import { getLiveScores } from '../lib/cricket.js';
 
 export default async function handler(req, res) {
   // ── Parse body if it came in as a raw string ──
@@ -54,6 +55,10 @@ export default async function handler(req, res) {
           } else if (parsed.action === 'detail') {
             const details = await getExpenseDetails(phone, parsed.period, parsed.category || null);
             await sendMessage(phone, details);
+
+          } else if (parsed.action === 'cricket') {
+            const scores = await getLiveScores(parsed.filter || null);
+            await sendMessage(phone, scores);
 
           } else if (parsed.action === 'receipt') {
             const receipt = await generateReceipt(phone, parsed.period);
